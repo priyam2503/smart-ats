@@ -5,11 +5,13 @@ import json
 import time
 import secrets
 import hashlib
+import base64
 import smtplib
 import sqlite3
 import threading
 import collections
 import logging
+import urllib.parse
 import urllib.request
 import urllib.error
 from email.message import EmailMessage
@@ -256,6 +258,68 @@ def _smtp_configured(host, user, password):
     return True
 
 
+def _gmail_access_token(client_id, client_secret, refresh_token):
+    """Exchange a long-lived refresh token for a short-lived Gmail access token."""
+    data = urllib.parse.urlencode({
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
+        "grant_type": "refresh_token",
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://oauth2.googleapis.com/token", data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "ignore")[:500]
+        raise RuntimeError(f"Gmail token refresh failed HTTP {e.code}: {detail}") from e
+    token = body.get("access_token")
+    if not token:
+        raise RuntimeError("Gmail token refresh returned no access_token")
+    return token
+
+
+def _send_via_gmail_api(to_email, subject, text_body, html_body):
+    """Send one email through the Gmail API over HTTPS, authenticated with a
+    stored OAuth refresh token.
+
+    Google itself sends the mail from the authorized account, so deliverability
+    is excellent and it works on hosts that block SMTP (e.g. Render). Raises on
+    failure so the caller can log it and fall back.
+    """
+    client_id = os.getenv("GMAIL_CLIENT_ID")
+    client_secret = os.getenv("GMAIL_CLIENT_SECRET")
+    refresh_token = os.getenv("GMAIL_REFRESH_TOKEN")
+    sender = os.getenv("GMAIL_SENDER") or os.getenv("SMTP_USER") or ""
+
+    access_token = _gmail_access_token(client_id, client_secret, refresh_token)
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg.set_content(text_body)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
+
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii")
+    payload = json.dumps({"raw": raw}).encode("utf-8")
+    req = urllib.request.Request(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        data=payload,
+        headers={"Authorization": f"Bearer {access_token}",
+                 "Content-Type": "application/json"},
+        method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "ignore")[:500]
+        raise RuntimeError(f"Gmail send failed HTTP {e.code}: {detail}") from e
+
+
 def _send_via_brevo(api_key, to_email, subject, text_body, html_body):
     """Send one transactional email through the Brevo HTTPS API.
 
@@ -299,8 +363,20 @@ def _deliver_email(to_email, subject, text_body, html_body, console_line):
 
     Returns "email" if it was actually sent, otherwise "console".
     """
-    # Preferred path: Brevo over HTTPS. SMTP ports (25/465/587) are blocked on
-    # many hosts (Render included), so an HTTP API is the reliable way to send.
+    # Preferred path: Gmail API over HTTPS — Google sends from the authorized
+    # account itself, so it delivers reliably and works where SMTP is blocked.
+    if os.getenv("GMAIL_REFRESH_TOKEN"):
+        try:
+            _send_via_gmail_api(to_email, subject, text_body, html_body)
+            print(f"[EMAIL SENT via Gmail API] '{subject}' -> {to_email}", flush=True)
+            app.logger.info("Email '%s' delivered to %s via Gmail API", subject, to_email)
+            return "email"
+        except Exception:
+            app.logger.exception("Gmail API send failed for %s", to_email)
+            # Fall through to Brevo / SMTP / console below.
+
+    # Next: Brevo over HTTPS. SMTP ports (25/465/587) are blocked on many hosts
+    # (Render included), so an HTTP API is the reliable way to send.
     brevo_key = os.getenv("BREVO_API_KEY")
     if brevo_key:
         try:
@@ -1283,7 +1359,10 @@ def me():
 if __name__ == '__main__':
     # Show the email mode at startup so it's obvious whether codes get emailed or
     # only printed here. (.env is read once at startup — restart after editing it.)
-    if os.getenv("BREVO_API_KEY"):
+    if os.getenv("GMAIL_REFRESH_TOKEN"):
+        _sender = os.getenv("GMAIL_SENDER") or os.getenv("SMTP_USER")
+        print(f"[startup] Email: Gmail API READY — mail sent over HTTPS from {_sender}.", flush=True)
+    elif os.getenv("BREVO_API_KEY"):
         _sender = (os.getenv("BREVO_SENDER") or os.getenv("SMTP_FROM")
                    or os.getenv("SMTP_USER"))
         print(f"[startup] Email: Brevo API READY — mail sent over HTTPS from {_sender}.", flush=True)

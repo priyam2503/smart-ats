@@ -29,8 +29,18 @@ services:
       # They are NEVER stored in this file or in GitHub.
       - key: GOOGLE_API_KEY
         sync: false
-      # Brevo HTTPS email API key — used to send OTP / password-reset mail,
-      # because Render blocks outbound SMTP (Gmail won't connect from here).
+      # Gmail API (preferred email path) — sends OTP / reset mail over HTTPS via
+      # Google itself, since Render blocks outbound SMTP. Get these by running
+      # get_gmail_token.py locally once. See DEPLOY.md.
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: GMAIL_SENDER
+        sync: false
+      # Brevo HTTPS email API key — optional fallback email path.
       - key: BREVO_API_KEY
         sync: false
       - key: SMTP_HOST
