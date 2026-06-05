@@ -1,0 +1,41 @@
+# Render Blueprint — describes how to run this Flask app on Render.
+# When you create a new "Blueprint" on Render and point it at this repo, Render
+# reads this file and fills in the build/start commands and env-var slots for you.
+services:
+  - type: web
+    name: smart-ats
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # 1 process, 8 threads: matches the multi-threaded behaviour the app was
+    # built and tested with locally (single shared SQLite connection + in-memory
+    # state), while still handling several visitors at once. 120s timeout gives
+    # the slow Gemini calls room to finish.
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120 --worker-class gthread
+    envVars:
+      # Pin the Python version to the one verified locally.
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      # Render generates a strong random value once and reuses it across
+      # deploys, so user sessions don't get logged out on every restart.
+      - key: FLASK_SECRET
+        generateValue: true
+      # Render serves over HTTPS — this marks the session cookie "Secure".
+      - key: HTTPS
+        value: "1"
+      - key: GEMINI_MODEL
+        value: "gemini-2.5-flash"
+      # Secrets — Render will prompt you to paste each value when you deploy.
+      # They are NEVER stored in this file or in GitHub.
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false

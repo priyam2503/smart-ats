@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart ATS · AI Resume Analyzer</title>
+    <meta name="description" content="AI-powered ATS resume analyzer. Match your resume to any job description, find missing keywords, and boost your ATS score.">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='40' y2='40'%3E%3Cstop offset='0' stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='11' fill='url(%23g)'/%3E%3Cpath d='M13 12h11M13 18h14M13 24h9' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M21.5 27.5l3.2 3.2 6-6.4' stroke='white' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body class="guest">
+    <!-- Scroll progress bar -->
+    <div class="scroll-progress" aria-hidden="true"><span id="scroll-bar"></span></div>
+
+    <!-- Animated background layers -->
+    <div class="bg-aurora" aria-hidden="true">
+        <span class="orb orb-1"></span>
+        <span class="orb orb-2"></span>
+        <span class="orb orb-3"></span>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+
+    <div class="page">
+        <!-- Header -->
+        <header class="site-header glass">
+            <a href="#home" class="brand">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 40 40" width="38" height="38" fill="none">
+                        <defs>
+                            <linearGradient id="lg" x1="0" y1="0" x2="40" y2="40">
+                                <stop offset="0" stop-color="#8b5cf6" />
+                                <stop offset="0.5" stop-color="#7c3aed" />
+                                <stop offset="1" stop-color="#22d3ee" />
+                            </linearGradient>
+                        </defs>
+                        <rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)" />
+                        <path d="M13 12h11M13 18h14M13 24h9" stroke="#fff" stroke-width="2.4"
+                            stroke-linecap="round" opacity="0.95" />
+                        <path d="M21.5 27.5l3.2 3.2 6-6.4" stroke="#fff" stroke-width="2.8"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </span>
+                <span class="brand-name">Smart<span class="brand-accent">ATS</span></span>
+            </a>
+            <nav class="top-nav">
+                <a href="#home" class="nav-link active">Home</a>
+                <a href="#analyzer" class="nav-link">Analyzer</a>
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#history" class="nav-link">History</a>
+            </nav>
+            <div class="header-actions">
+                <button id="theme-toggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <!-- Logged-out: Sign In button -->
+                <button id="signin-btn" class="btn btn-primary signin">Sign In</button>
+                <!-- Logged-in: avatar menu -->
+                <div id="user-menu" class="user-menu hidden">
+                    <button id="user-avatar" class="user-avatar" aria-label="Account">JS</button>
+                    <div id="user-dropdown" class="user-dropdown glass hidden">
+                        <div class="user-info">
+                            <strong id="user-name">User</strong>
+                            <span id="user-email" class="muted"></span>
+                        </div>
+                        <button id="logout-btn" class="btn btn-ghost btn-sm">Sign out</button>
+                    </div>
+                </div>
+            </div>
+            <button id="nav-burger" class="icon-btn burger" aria-label="Menu">☰</button>
+        </header>
+
+        <!-- Hero -->
+        <section id="home" class="hero reveal">
+            <div class="hero-text">
+                <span class="pill"><span class="pill-dot"></span> AI-Powered · Gemini</span>
+                <h1>Beat the bots.<br><span class="gradient-text">Land the interview.</span></h1>
+                <p class="lead">Instant, AI-driven analysis that scores your resume against any job description,
+                    surfaces the keywords you're missing, and tells you exactly what to fix.</p>
+                <div class="hero-cta">
+                    <button id="hero-eval" class="btn btn-primary btn-lg">
+                        <span>Analyze My Resume</span>
+                        <span class="btn-arrow">→</span>
+                    </button>
+                    <a href="#features" class="btn btn-ghost btn-lg">See how it works</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat"><strong>10k+</strong><span>Resumes scanned</span></div>
+                    <div class="stat"><strong>98%</strong><span>Accuracy</span></div>
+                    <div class="stat"><strong>&lt;10s</strong><span>Avg. analysis</span></div>
+                </div>
+            </div>
+            <div class="hero-art" data-tilt data-tilt-strength="14">
+                <div class="hero-card glass">
+                    <div class="hero-card-head">
+                        <span class="dot red"></span><span class="dot amber"></span><span class="dot green"></span>
+                        <span class="hero-card-title">match-report.json</span>
+                    </div>
+                    <div class="hero-ring-wrap">
+                        <svg class="ring" viewBox="0 0 120 120">
+                            <defs>
+                                <linearGradient id="ringGrad" x1="0" y1="0" x2="120" y2="120">
+                                    <stop offset="0" stop-color="#8b5cf6" />
+                                    <stop offset="1" stop-color="#22d3ee" />
+                                </linearGradient>
+                            </defs>
+                            <circle class="ring-bg" cx="60" cy="60" r="52" />
+                            <circle class="ring-fg demo" cx="60" cy="60" r="52" />
+                        </svg>
+                        <div class="ring-label"><strong>87%</strong><span>JD Match</span></div>
+                    </div>
+                    <div class="hero-tags">
+                        <span class="chip ok">Python</span>
+                        <span class="chip ok">REST API</span>
+                        <span class="chip miss">Kubernetes</span>
+                        <span class="chip miss">CI/CD</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Login gate (shown to logged-out visitors instead of the tools) -->
+        <section id="login-gate" class="login-gate reveal">
+            <div class="login-gate-card glass" data-tilt data-tilt-strength="4">
+                <div class="login-gate-ico" aria-hidden="true">🔒</div>
+                <h2>Log in to analyze your resume</h2>
+                <p>Create a free account or sign in to unlock the AI resume analyzer, keyword-gap
+                    report, career toolkit, and your progress dashboard. It’s free and takes under a minute.</p>
+                <div class="login-gate-actions">
+                    <button id="gate-register" class="btn btn-primary btn-lg">Create free account</button>
+                    <button id="gate-login" class="btn btn-ghost btn-lg">Sign in</button>
+                </div>
+                <ul class="login-gate-perks">
+                    <li>🎯 Instant JD match score</li>
+                    <li>🔑 Missing-keyword report</li>
+                    <li>🧰 AI career toolkit</li>
+                    <li>📈 Progress tracking</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Analyzer -->
+        <main>
+            <section id="analyzer" class="analyzer glass reveal" data-tilt data-tilt-strength="4">
+                <div class="section-head">
+                    <h2>Analyze your resume</h2>
+                    <p>Paste a job description, drop in your resume, and get a full report in seconds.</p>
+                </div>
+
+                <div class="analyzer-grid">
+                    <!-- JD column -->
+                    <div class="field-col">
+                        <label class="field-label" for="jd"><span class="step-num">1</span> Job description</label>
+                        <div class="textarea-wrap">
+                            <textarea id="jd" name="jd" rows="12" maxlength="5000"
+                                placeholder="Paste the full job description here…"></textarea>
+                            <div class="char-hint"><span id="char-count">0</span>/5000</div>
+                        </div>
+                    </div>
+
+                    <!-- Upload column -->
+                    <div class="field-col">
+                        <label class="field-label"><span class="step-num">2</span> Your resume</label>
+
+                        <!-- File-type selector cards -->
+                        <div class="type-cards" role="tablist">
+                            <input type="radio" id="type-pdf" name="upload-type" value="pdf" checked>
+                            <label for="type-pdf" class="type-card">
+                                <span class="type-ico pdf">
+                                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                    </svg>
+                                </span>
+                                <span class="type-meta"><strong>PDF document</strong><small>.pdf file</small></span>
+                                <span class="type-check">✓</span>
+                            </label>
+
+                            <input type="radio" id="type-image" name="upload-type" value="image">
+                            <label for="type-image" class="type-card">
+                                <span class="type-ico img">
+                                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <path d="m21 15-5-5L5 21" />
+                                    </svg>
+                                </span>
+                                <span class="type-meta"><strong>Image / photo</strong><small>JPG, PNG, WEBP</small></span>
+                                <span class="type-check">✓</span>
+                            </label>
+                        </div>
+
+                        <!-- Dropzone -->
+                        <div id="drop-area" class="drop-area">
+                            <span class="drop-ring" aria-hidden="true"></span>
+                            <input type="file" id="resume" name="resume" accept=".pdf">
+                            <div class="drop-message">
+                                <div class="upload-icon">
+                                    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                        <polyline points="17 8 12 3 7 8" />
+                                        <line x1="12" y1="3" x2="12" y2="15" />
+                                    </svg>
+                                </div>
+                                <div id="drop-text" class="drop-title">Drag &amp; drop your PDF, or <span class="link">browse files</span></div>
+                                <div class="small" id="accept-text">Only PDF files are accepted · max 10MB</div>
+                            </div>
+                            <div id="file-preview" class="file-preview hidden">
+                                <div class="file-card">
+                                    <span class="file-ico" id="file-ico">📄</span>
+                                    <span class="file-meta">
+                                        <span class="file-name" id="file-name">resume.pdf</span>
+                                        <span class="file-status">✓ Ready to analyze</span>
+                                    </span>
+                                    <button type="button" class="file-remove" id="file-remove" aria-label="Remove file">✕</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analyzer-actions">
+                    <button id="submit-btn" class="btn btn-primary btn-lg" disabled>
+                        <span class="btn-label">Run Analysis</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                    </button>
+                    <span class="hint-inline">Fill in both fields to enable analysis.</span>
+                </div>
+            </section>
+
+            <!-- Results -->
+            <section id="results-container" class="results glass hidden" data-tilt data-tilt-strength="3">
+                <div class="section-head">
+                    <h2>Your report</h2>
+                    <div class="result-actions">
+                        <button id="report-download" class="btn btn-ghost btn-sm">🖨️ Download report</button>
+                        <button id="result-reset" class="btn btn-ghost btn-sm">Run another →</button>
+                    </div>
+                </div>
+
+                <div id="loader" class="loader-wrap hidden">
+                    <div class="scanner">
+                        <div class="scanner-doc">
+                            <span></span><span></span><span></span><span></span><span></span>
+                            <div class="scan-line"></div>
+                        </div>
+                    </div>
+                    <p class="loader-text">Analyzing your resume against the job description…</p>
+                </div>
+
+                <div id="results-content" class="results-content"></div>
+
+                <!-- AI Career Toolkit -->
+                <div id="toolkit-cta" class="toolkit-cta hidden">
+                    <div class="toolkit-cta-text">
+                        <h3>✨ Generate your AI Career Toolkit</h3>
+                        <p>Turn this analysis into a tailored cover letter, interview prep, resume rewrites, and a skill roadmap — all built for this exact job.</p>
+                    </div>
+                    <button id="toolkit-btn" class="btn btn-primary btn-lg">
+                        <span class="btn-label">🚀 Build my toolkit</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </div>
+
+                <div id="toolkit-panel" class="toolkit-panel hidden">
+                    <div class="toolkit-tabs" role="tablist">
+                        <button class="tk-tab active" data-tab="cover">✍️ Cover Letter</button>
+                        <button class="tk-tab" data-tab="interview">🎤 Interview Prep</button>
+                        <button class="tk-tab" data-tab="resume">🚀 Resume Boost</button>
+                        <button class="tk-tab" data-tab="experience">🧱 Experience Builder</button>
+                        <button class="tk-tab" data-tab="brand">🪪 Personal Brand</button>
+                        <button class="tk-tab" data-tab="roadmap">🧭 Skill Roadmap</button>
+                    </div>
+                    <div class="toolkit-bodies">
+                        <div class="tk-body active" data-body="cover">
+                            <div class="tk-toolbar">
+                                <button id="cover-copy" class="btn btn-ghost btn-sm">📋 Copy</button>
+                                <button id="cover-download" class="btn btn-ghost btn-sm">⬇ Download .txt</button>
+                            </div>
+                            <div id="cover-letter" class="cover-letter"></div>
+                        </div>
+                        <div class="tk-body" data-body="interview"><div id="interview-list" class="interview-list"></div></div>
+                        <div class="tk-body" data-body="resume"><div id="resume-tips" class="resume-tips"></div></div>
+
+                        <!-- Experience Builder -->
+                        <div class="tk-body" data-body="experience">
+                            <div class="exp-intro">
+                                <p>Paste a project, internship, club, or coursework in plain English — get polished, ATS-ready bullet points that weave in this job's keywords. Perfect for freshers and career-changers.</p>
+                            </div>
+                            <textarea id="exp-input" class="exp-input" rows="4"
+                                placeholder="e.g. Built a weather app in college using Python and a public API; presented it to 30 classmates…"></textarea>
+                            <div class="exp-actions">
+                                <button id="exp-generate" class="btn btn-primary btn-sm">
+                                    <span class="btn-label">✨ Build bullet points</span>
+                                    <span class="btn-spinner" aria-hidden="true"></span>
+                                </button>
+                                <span class="hint-inline">Honest by design — it never invents jobs, dates, or metrics.</span>
+                            </div>
+                            <div id="exp-output" class="exp-output"></div>
+                        </div>
+
+                        <!-- Personal Brand -->
+                        <div class="tk-body" data-body="brand"><div id="brand-content" class="brand-content"></div></div>
+
+                        <div class="tk-body" data-body="roadmap"><div id="skill-roadmap" class="skill-roadmap"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="error-container" class="error-banner hidden"></div>
+
+            <!-- Features -->
+            <section id="features" class="features reveal">
+                <div class="section-head center">
+                    <h2>Everything you get</h2>
+                    <p>A complete breakdown, not just a number.</p>
+                </div>
+                <div class="features-grid">
+                    <article class="feature glass" data-tilt data-tilt-strength="10">
+                        <div class="feature-ico">🎯</div>
+                        <h3>JD Match Score</h3>
+                        <p>A precise percentage showing how well your resume aligns with the role.</p>
+                    </article>
+                    <article class="feature glass" data-tilt data-tilt-strength="10">
+                        <div class="feature-ico">🔑</div>
+                        <h3>Keyword Gaps</h3>
+                        <p>The exact terms recruiters and ATS bots want — that your resume is missing.</p>
+                    </article>
+                    <article class="feature glass" data-tilt data-tilt-strength="10">
+                        <div class="feature-ico">🧭</div>
+                        <h3>Actionable Feedback</h3>
+                        <p>Specific, concrete suggestions you can apply in minutes.</p>
+                    </article>
+                    <article class="feature glass" data-tilt data-tilt-strength="10">
+                        <div class="feature-ico">📈</div>
+                        <h3>Better Job Fit</h3>
+                        <p>Tailor every application and dramatically raise your callback rate.</p>
+                    </article>
+                </div>
+            </section>
+
+            <!-- Tips -->
+            <section class="tips reveal">
+                <div class="tip-card glass" data-tilt data-tilt-strength="6">
+                    <h4>✅ Best Practices</h4>
+                    <p>Lead with measurable achievements, mirror the exact keywords from the job
+                        description, and keep formatting clean so ATS parsers read every line.</p>
+                </div>
+                <div class="tip-card glass" data-tilt data-tilt-strength="6">
+                    <h4>⚡ Quick Tips</h4>
+                    <ul>
+                        <li>Use strong verbs: <em>led, built, optimized, shipped.</em></li>
+                        <li>Quantify impact — numbers beat adjectives.</li>
+                        <li>Keep sections clear and consistently formatted.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Progress dashboard (logged-in users) -->
+            <section id="dashboard" class="dashboard reveal hidden">
+                <div class="section-head">
+                    <h2>Your progress</h2>
+                    <span class="muted" id="dash-sub">Across all your analyses</span>
+                </div>
+                <div class="dash-grid">
+                    <div class="dash-tile glass">
+                        <span class="dash-label">Analyses</span>
+                        <strong id="dash-count" class="dash-value">0</strong>
+                    </div>
+                    <div class="dash-tile glass">
+                        <span class="dash-label">Average score</span>
+                        <strong id="dash-avg" class="dash-value">—</strong>
+                    </div>
+                    <div class="dash-tile glass">
+                        <span class="dash-label">Best score</span>
+                        <strong id="dash-best" class="dash-value">—</strong>
+                    </div>
+                    <div class="dash-tile dash-trend glass">
+                        <span class="dash-label">Score trend</span>
+                        <div id="dash-spark" class="dash-spark"></div>
+                    </div>
+                </div>
+                <div id="dash-missing-wrap" class="dash-missing hidden">
+                    <h4>🔁 Keywords you keep missing</h4>
+                    <p class="muted dash-missing-sub">Fix these once and lift many applications at the same time.</p>
+                    <div id="dash-missing" class="keywords"></div>
+                </div>
+            </section>
+
+            <!-- History -->
+            <section id="history" class="history reveal">
+                <div class="section-head">
+                    <h2>Recent analyses</h2>
+                    <button id="history-refresh" class="btn btn-ghost btn-sm">↻ Refresh</button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <p class="history-empty">Run an analysis to see your history here.</p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <span>Smart<span class="brand-accent">ATS</span> — built with Flask + Gemini</span>
+            <span class="muted">For best results, tailor your resume to each role.</span>
+        </footer>
+    </div>
+
+    <!-- Scroll to top -->
+    <button id="to-top" class="to-top" aria-label="Back to top">↑</button>
+
+    <!-- Auth modal -->
+    <div id="auth-overlay" class="auth-overlay hidden" aria-hidden="true">
+        <div class="auth-modal glass" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <button id="auth-close" class="auth-close" aria-label="Close">✕</button>
+            <div class="auth-head">
+                <span class="brand-mark sm" aria-hidden="true">
+                    <svg viewBox="0 0 40 40" width="34" height="34" fill="none">
+                        <rect x="2" y="2" width="36" height="36" rx="11" fill="url(#lg)" />
+                        <path d="M13 12h11M13 18h14M13 24h9" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity="0.95" />
+                        <path d="M21.5 27.5l3.2 3.2 6-6.4" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </span>
+                <h2 id="auth-title">Welcome back</h2>
+                <p id="auth-sub" class="muted">Sign in to save and track your resume analyses.</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-mode="login">Sign In</button>
+                <button class="auth-tab" data-mode="register">Create account</button>
+                <span class="auth-tab-thumb"></span>
+            </div>
+
+            <form id="auth-form" class="auth-form" novalidate>
+                <div class="auth-field name-field hidden">
+                    <label for="au-name">Full name</label>
+                    <input type="text" id="au-name" autocomplete="name" placeholder="Jane Smith">
+                </div>
+                <div class="auth-field">
+                    <label for="au-email">Email</label>
+                    <input type="email" id="au-email" autocomplete="email" placeholder="you@example.com" required>
+                </div>
+                <div class="auth-field">
+                    <label for="au-password">Password</label>
+                    <input type="password" id="au-password" autocomplete="current-password" placeholder="••••••••" required>
+                </div>
+                <p id="auth-forgot" class="auth-forgot">
+                    <button type="button" id="forgot-link" class="link-btn">Forgot password?</button>
+                </p>
+                <div id="auth-error" class="auth-error hidden"></div>
+                <button type="submit" id="auth-submit" class="btn btn-primary btn-lg auth-submit">
+                    <span class="btn-label">Sign In</span>
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                </button>
+            </form>
+
+            <p class="auth-switch">
+                <span id="auth-switch-text">New here?</span>
+                <button type="button" id="auth-switch-btn" class="link-btn">Create an account</button>
+            </p>
+
+            <!-- OTP verification step (shown after a code is emailed during sign-up) -->
+            <form id="otp-form" class="auth-form hidden" novalidate>
+                <p class="otp-sent muted">Enter the 6-digit code we sent to
+                    <strong id="otp-email-label"></strong>.</p>
+                <div class="auth-field">
+                    <label for="otp-input">Verification code</label>
+                    <input type="text" id="otp-input" class="otp-input" inputmode="numeric"
+                        autocomplete="one-time-code" maxlength="6" pattern="\d{6}"
+                        placeholder="••••••" required>
+                </div>
+                <div id="otp-error" class="auth-error hidden"></div>
+                <button type="submit" id="otp-submit" class="btn btn-primary btn-lg auth-submit">
+                    <span class="btn-label">Verify &amp; create account</span>
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                </button>
+                <p class="auth-switch">
+                    <button type="button" id="otp-resend" class="link-btn">Resend code</button>
+                    <span class="muted"> · </span>
+                    <button type="button" id="otp-back" class="link-btn">Use a different email</button>
+                </p>
+            </form>
+
+            <!-- Forgot password: request a reset link by email -->
+            <form id="forgot-form" class="auth-form hidden" novalidate>
+                <p class="otp-sent muted">Enter your account email and we’ll send you a link to reset
+                    your password.</p>
+                <div class="auth-field">
+                    <label for="forgot-email">Email</label>
+                    <input type="email" id="forgot-email" autocomplete="email" placeholder="you@example.com" required>
+                </div>
+                <div id="forgot-error" class="auth-error hidden"></div>
+                <div id="forgot-msg" class="auth-note hidden"></div>
+                <button type="submit" id="forgot-submit" class="btn btn-primary btn-lg auth-submit">
+                    <span class="btn-label">Send reset link</span>
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                </button>
+                <p class="auth-switch">
+                    <button type="button" id="forgot-back" class="link-btn">Back to sign in</button>
+                </p>
+            </form>
+
+            <!-- Reset password: opened from the emailed link (?reset_token=...) -->
+            <form id="reset-form" class="auth-form hidden" novalidate>
+                <p class="otp-sent muted">Choose a new password for your account.</p>
+                <div class="auth-field">
+                    <label for="reset-password">New password</label>
+                    <input type="password" id="reset-password" autocomplete="new-password" placeholder="••••••••" required>
+                </div>
+                <div class="auth-field">
+                    <label for="reset-password2">Confirm new password</label>
+                    <input type="password" id="reset-password2" autocomplete="new-password" placeholder="••••••••" required>
+                </div>
+                <div id="reset-error" class="auth-error hidden"></div>
+                <button type="submit" id="reset-submit" class="btn btn-primary btn-lg auth-submit">
+                    <span class="btn-label">Reset password</span>
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
