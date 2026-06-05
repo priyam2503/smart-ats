@@ -1,5 +1,15 @@
 # Smart ATS — AI Resume Analyzer 📄🤖
 
+<div align="center">
+
+### 🔗 [**Try the Live Demo →**](https://smart-ats-shlf.onrender.com)
+
+*Free hosting — the first visit may take ~30–50s to wake the app, then it's fast.*
+
+</div>
+
+---
+
 An AI-powered **Applicant Tracking System (ATS)** that scores your résumé against any
 job description, tells you exactly which keywords you're missing, and helps you fix
 them — powered by Google Gemini.
