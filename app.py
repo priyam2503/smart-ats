@@ -10,7 +10,10 @@ import sqlite3
 import threading
 import collections
 import logging
+import urllib.request
+import urllib.error
 from email.message import EmailMessage
+from email.utils import parseaddr
 from functools import wraps
 import PyPDF2 as pdf
 from dotenv import load_dotenv
@@ -253,12 +256,62 @@ def _smtp_configured(host, user, password):
     return True
 
 
+def _send_via_brevo(api_key, to_email, subject, text_body, html_body):
+    """Send one transactional email through the Brevo HTTPS API.
+
+    Works on hosts that block outbound SMTP (e.g. Render, which can't even
+    resolve smtp.gmail.com). Raises on failure so the caller can log it and
+    fall back. The sender address must be a *verified sender* in Brevo.
+    """
+    raw_sender = (os.getenv("BREVO_SENDER") or os.getenv("SMTP_FROM")
+                  or os.getenv("SMTP_USER") or "")
+    sender_name, sender_addr = parseaddr(raw_sender)
+    payload = {
+        "sender": {"name": sender_name or "Smart ATS", "email": sender_addr},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": text_body,
+    }
+    if html_body:
+        payload["htmlContent"] = html_body
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "api-key": api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "ignore")[:500]
+        raise RuntimeError(f"Brevo HTTP {e.code}: {detail}") from e
+
+
 def _deliver_email(to_email, subject, text_body, html_body, console_line):
-    """Send one email via SMTP, or fall back to printing on the server console
-    when SMTP isn't configured (or fails) so the flow stays testable in dev.
+    """Deliver one email, preferring the Brevo HTTPS API (works where SMTP is
+    blocked), then SMTP (local dev), then printing to the console as a last
+    resort so the flow stays testable.
 
     Returns "email" if it was actually sent, otherwise "console".
     """
+    # Preferred path: Brevo over HTTPS. SMTP ports (25/465/587) are blocked on
+    # many hosts (Render included), so an HTTP API is the reliable way to send.
+    brevo_key = os.getenv("BREVO_API_KEY")
+    if brevo_key:
+        try:
+            _send_via_brevo(brevo_key, to_email, subject, text_body, html_body)
+            print(f"[EMAIL SENT via Brevo] '{subject}' -> {to_email}", flush=True)
+            app.logger.info("Email '%s' delivered to %s via Brevo", subject, to_email)
+            return "email"
+        except Exception:
+            app.logger.exception("Brevo API send failed for %s", to_email)
+            # Fall through to SMTP / console below.
+
     host = os.getenv("SMTP_HOST")
     user = os.getenv("SMTP_USER")
     # Gmail shows app passwords as 4 space-separated groups; SMTP wants them joined.
@@ -1230,14 +1283,19 @@ def me():
 if __name__ == '__main__':
     # Show the email mode at startup so it's obvious whether codes get emailed or
     # only printed here. (.env is read once at startup — restart after editing it.)
-    _h = os.getenv("SMTP_HOST")
-    _u = os.getenv("SMTP_USER")
-    _p = (os.getenv("SMTP_PASS") or "").replace(" ", "")
-    if _smtp_configured(_h, _u, _p):
-        print(f"[startup] Email: SMTP READY — verification codes will be emailed via {_u}.", flush=True)
+    if os.getenv("BREVO_API_KEY"):
+        _sender = (os.getenv("BREVO_SENDER") or os.getenv("SMTP_FROM")
+                   or os.getenv("SMTP_USER"))
+        print(f"[startup] Email: Brevo API READY — mail sent over HTTPS from {_sender}.", flush=True)
     else:
-        print("[startup] Email: CONSOLE MODE — codes are printed in this terminal, NOT emailed. "
-              "Put a real Gmail App Password in .env (SMTP_USER/SMTP_PASS) and restart.", flush=True)
+        _h = os.getenv("SMTP_HOST")
+        _u = os.getenv("SMTP_USER")
+        _p = (os.getenv("SMTP_PASS") or "").replace(" ", "")
+        if _smtp_configured(_h, _u, _p):
+            print(f"[startup] Email: SMTP READY — verification codes will be emailed via {_u}.", flush=True)
+        else:
+            print("[startup] Email: CONSOLE MODE — codes are printed in this terminal, NOT emailed. "
+                  "Set BREVO_API_KEY (recommended) or Gmail SMTP creds in .env and restart.", flush=True)
 
     # Debug is OFF by default (prevents internal-error leakage and the Werkzeug
     # debugger RCE surface). Enable locally with FLASK_DEBUG=1.

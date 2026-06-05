@@ -12,7 +12,12 @@ This app is a **Flask** server (`app.py`). It is deployed to Render using the
 5. Render will ask you to fill in the secret values (the ones marked `sync: false`).
    Copy each value from your **local `.env`** file:
    - `GOOGLE_API_KEY`
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+   - `BREVO_API_KEY` — used to send OTP / password-reset email over HTTPS.
+     **Required in production:** Render blocks outbound SMTP, so Gmail can't send
+     from there. Create a free account at <https://www.brevo.com>, verify your
+     sender address, and create an API key (Settings → SMTP & API → API Keys).
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` — only used
+     as a fallback for local development; not needed on Render.
 6. Click **Create** / **Deploy** and wait ~3–5 minutes for the first build.
 7. Your live URL appears at the top, like `https://smart-ats.onrender.com`.
 

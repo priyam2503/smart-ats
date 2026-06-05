@@ -29,6 +29,10 @@ services:
       # They are NEVER stored in this file or in GitHub.
       - key: GOOGLE_API_KEY
         sync: false
+      # Brevo HTTPS email API key — used to send OTP / password-reset mail,
+      # because Render blocks outbound SMTP (Gmail won't connect from here).
+      - key: BREVO_API_KEY
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
